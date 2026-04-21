@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>給妳</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { height: 100%; }
+
+body {
+  width: 100%;
+  height: 100%;
+  font-family: 'Noto Serif TC', serif;
+  overflow: hidden;
+  background: #1a1d3b;
+}
+
+/* ── Canvas BG ── */
+#bg-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+/* Grain overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 999;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+}
+
+/* ── Scroll Container ── */
+#scroll-container {
+  position: fixed;
+  inset: 0;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  z-index: 1;
+  -webkit-overflow-scrolling: touch;
+}
+#scroll-container::-webkit-scrollbar { display: none; }
+
+/* ── Scenes ── */
+.scene {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 48px 36px;
+  overflow: hidden;
+}
+
+/* ── Text System ── */
+.text-block {
+  text-align: center;
+  position: relative;
+  z-index: 2;
+}
+
+.scene-line {
+  display: block;
+  font-weight: 300;
+  line-height: 1.95;
+  letter-spacing: 0.14em;
+  opacity: 0;
+  transform: translateY(28px);
+  filter: blur(8px);
+  transition: opacity 1.4s ease, transform 1.4s ease, filter 1.4s ease;
+  will-change: opacity, transform, filter;
+}
+
+.scene-line.in {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+/* Per-scene text color */
+.s0 .scene-line { color: #8ea4cc; font-size: clamp(22px, 5.5vw, 30px); }
+.s1 .scene-line { color: #a9bad8; font-size: clamp(20px, 5vw, 28px); }
+.s2 .scene-line { color: #cec4e8; font-size: clamp(20px, 5vw, 28px); }
+.s3 .scene-line { color: #f0d8f0; font-size: clamp(22px, 5.5vw, 30px); }
+.s4 .scene-line { color: #ffe8ef; font-size: clamp(20px, 5vw, 28px); }
+.s5 .scene-line { color: #7a4030; font-size: clamp(22px, 5.5vw, 30px); }
+
+/* ── Dog Image ── */
+.dog-img {
+  width: clamp(110px, 30vw, 160px);
+  height: clamp(110px, 30vw, 160px);
+  object-fit: contain;
+  border-radius: 50%;
+  margin-bottom: 28px;
+  opacity: 0;
+  transform: translateY(24px) scale(0.9);
+  filter: drop-shadow(0 0 24px rgba(100, 130, 210, 0.25)) blur(4px);
+  transition: opacity 1.6s ease 0.2s, transform 1.6s ease 0.2s, filter 1.6s ease 0.2s;
+  position: relative;
+  z-index: 2;
+}
+.dog-img.in {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: drop-shadow(0 0 24px rgba(100, 130, 210, 0.25)) blur(0);
+}
+
+/* ── Decorative divider ── */
+.deco {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px auto;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+.deco.in { opacity: 1; }
+.deco-dot { width: 3px; height: 3px; border-radius: 50%; background: currentColor; opacity: 0.4; }
+.deco-line { width: 36px; height: 1px; background: currentColor; opacity: 0.25; }
+
+/* ── Caveat Signature ── */
+.sig {
+  font-family: 'Caveat', cursive;
+  font-size: clamp(32px, 9vw, 52px);
+  font-weight: 700;
+  color: #c07060;
+  display: block;
+  margin-top: 8px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 1.2s ease 0.8s, transform 1.2s ease 0.8s;
+}
+.sig.in { opacity: 1; transform: translateY(0); }
+
+/* ── Draw hint ── */
+.draw-hint {
+  margin-top: 28px;
+  font-size: clamp(12px, 3.2vw, 15px);
+  letter-spacing: 0.18em;
+  color: #b07868;
+  opacity: 0;
+  transition: opacity 1s ease 1.6s;
+  position: relative;
+  z-index: 10;
+  pointer-events: none;
+}
+.draw-hint.in { opacity: 0.9; }
+
+/* ── Progress dots ── */
+#dots {
+  position: fixed;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  z-index: 50;
+}
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.25);
+  transition: all 0.4s ease;
+  cursor: pointer;
+}
+.dot.active {
+  background: rgba(255,255,255,0.85);
+  transform: scale(1.5);
+}
+.dot.warm { background: rgba(100, 60, 40, 0.25); }
+.dot.warm.active { background: rgba(100, 60, 40, 0.75); }
+
+/* ── Scroll hint arrow ── */
+.scroll-arrow {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 10;
+  opacity: 0;
+  animation: arrowFadeLoop 3.5s ease 2.5s infinite;
+  pointer-events: none;
+}
+.scroll-arrow span {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: rgba(255,255,255,0.4);
+}
+.arrow-chevron {
+  width: 16px; height: 16px;
+  border-right: 1.5px solid rgba(255,255,255,0.3);
+  border-bottom: 1.5px solid rgba(255,255,255,0.3);
+  transform: rotate(45deg);
+  animation: chevronBounce 1.6s ease-in-out infinite;
+}
+@keyframes arrowFadeLoop {
+  0%,100% { opacity: 0; }
+  20%, 80% { opacity: 1; }
+}
+@keyframes chevronBounce {
+  0%,100% { margin-top: 0; }
+  50% { margin-top: 5px; }
+}
+
+/* ── Particles ── */
+.particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+.particle {
+  position: absolute;
+  pointer-events: none;
+  animation: particleFloat linear infinite;
+  opacity: 0;
+}
+@keyframes particleFloat {
+  0% { transform: translateY(-5%) rotate(0deg); opacity: 0; }
+  10% { opacity: var(--max-op); }
+  90% { opacity: var(--max-op); }
+  100% { transform: translateY(110vh) rotate(var(--rot)); opacity: 0; }
+}
+@keyframes particlePulse {
+  0%, 100% { opacity: 0; transform: scale(0.8) rotate(0deg); }
+  50% { opacity: var(--max-op); transform: scale(1.1) rotate(var(--rot)); }
+}
+
+/* ── Heart Canvas (Scene 6) ── */
+#heart-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+  z-index: 5;
+}
+
+/* ── Balloon Container ── */
+#balloon-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 200;
+  overflow: hidden;
+}
+.balloon {
+  position: absolute;
+  bottom: -80px;
+  animation: balloonRise var(--dur) ease-in forwards;
+  font-size: var(--sz);
+}
+@keyframes balloonRise {
+  0%   { bottom: -80px; transform: translateX(0) rotate(0deg); opacity: 1; }
+  100% { bottom: 115%; transform: translateX(var(--drift)) rotate(var(--rot)); opacity: 0; }
+}
+
+/* ── Final Image ── */
+#final-img-wrap {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 150;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.7s ease;
+}
+#final-img-wrap.show { opacity: 1; }
+#final-img {
+  width: min(280px, 78vw);
+  border-radius: 24px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.25), 0 0 0 6px rgba(255,255,255,0.6);
+  animation: popIn 0.7s cubic-bezier(0.34,1.56,0.64,1) forwards;
+}
+@keyframes popIn {
+  from { transform: scale(0.4) rotate(-12deg); }
+  to   { transform: scale(1) rotate(0deg); }
+}
+
+/* ── Flash overlay ── */
+#flash {
+  position: fixed; inset: 0;
+  background: rgba(255, 160, 140, 0.3);
+  z-index: 180;
+  pointer-events: none;
+  opacity: 0;
+}
+@keyframes flash {
+  0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; }
+}
+
+/* ── Scene 2 subtle quote style ── */
+.s1 .scene-line:first-child { font-size: clamp(14px, 3.5vw, 20px); opacity: 0; color: #8a9dc0; }
+
+/* Sub text (smaller) */
+.sub { font-size: clamp(15px, 3.8vw, 21px) !important; }
+
+/* ── Heart pulsing guide ── */
+#heart-guide {
+  position: absolute;
+  font-size: 80px;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 4;
+  animation: heartPulse 2.2s ease-in-out infinite;
+}
+@keyframes heartPulse {
+  0%,100% { transform: translateX(-50%) scale(1); opacity: 0.1; }
+  50% { transform: translateX(-50%) scale(1.08); opacity: 0.18; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<div id="balloon-container"></div>
+<div id="flash"></div>
+
+<div id="final-img-wrap">
+  <img id="final-img"
+    src="https://i.ibb.co/g260zSf/Messenger-creation-BB4-E457-A-92-DF-40-D7-8718-74102797-D065.jpg"
+    alt="熊熊跟狗狗抱抱" />
+</div>
+
+<div id="dots">
+  <div class="dot active" data-i="0"></div>
+  <div class="dot" data-i="1"></div>
+  <div class="dot" data-i="2"></div>
+  <div class="dot" data-i="3"></div>
+  <div class="dot" data-i="4"></div>
+  <div class="dot" data-i="5"></div>
+</div>
+
+<div id="scroll-container">
+
+  <!-- ── SCENE 0 ── -->
+  <div class="scene s0" data-idx="0">
+    <div class="particles" id="p0"></div>
+    <img class="dog-img" id="dog-img"
+      src="https://i.ibb.co/NdpgqswC/Messenger-creation-5-C7-F76-CD-0-FFB-4-B16-9-E92-E8-A6-F6-B0869-C.jpg"
+      alt="哭哭狗" />
+    <div class="text-block">
+      <span class="scene-line" style="--d:0.3s">最近我們好像</span>
+      <span class="scene-line" style="--d:0.7s">總是在生氣。</span>
+    </div>
+    <div class="scroll-arrow">
+      <span>往下滑</span>
+      <div class="arrow-chevron"></div>
+    </div>
+  </div>
+
+  <!-- ── SCENE 1 ── -->
+  <div class="scene s1" data-idx="1">
+    <div class="particles" id="p1"></div>
+    <div class="text-block">
+      <span class="scene-line sub" style="--d:0.15s">其實每次吵完架，</span>
+      <span class="scene-line" style="--d:0.55s">看著妳難過，</span>
+      <span class="scene-line" style="--d:0.95s">我心裡也都不好受。</span>
+    </div>
+  </div>
+
+  <!-- ── SCENE 2 ── -->
+  <div class="scene s2" data-idx="2">
+    <div class="particles" id="p2"></div>
+    <div class="text-block">
+      <div class="deco s2" style="color:#cec4e8">
+        <div class="deco-dot"></div><div class="deco-line"></div><div class="deco-dot"></div>
+      </div>
+      <span class="scene-line" style="--d:0.2s">對不起，</span>
+      <span class="scene-line sub" style="--d:0.55s">常常太粗心了，</span>
+      <span class="scene-line sub" style="--d:0.9s">沒有顧及到妳的感受，</span>
+      <span class="scene-line" style="--d:1.25s">傷了妳的心。</span>
+      <div class="deco s2" style="color:#cec4e8;transition-delay:1.5s">
+        <div class="deco-dot"></div><div class="deco-line"></div><div class="deco-dot"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCENE 3 ── -->
+  <div class="scene s3" data-idx="3">
+    <div class="particles" id="p3"></div>
+    <div class="text-block">
+      <span class="scene-line" style="--d:0.2s">我一直愛你，</span>
+      <span class="scene-line sub" style="--d:0.65s">我想跟妳一直在一起的心</span>
+      <span class="scene-line sub" style="--d:1.05s">從來沒變過。</span>
+    </div>
+  </div>
+
+  <!-- ── SCENE 4 ── -->
+  <div class="scene s4" data-idx="4">
+    <div class="particles" id="p4"></div>
+    <div class="text-block">
+      <span class="scene-line" style="--d:0.2s">我願意好好聽妳說話，</span>
+      <span class="scene-line" style="--d:0.7s">好好溝通。</span>
+    </div>
+  </div>
+
+  <!-- ── SCENE 5 ── -->
+  <div class="scene s5" data-idx="5">
+    <div class="particles" id="p5"></div>
+    <div class="text-block" style="position:relative;z-index:10">
+      <span class="scene-line" style="--d:0.2s">可以願意原諒我嗎？</span>
+      <span class="sig" id="sig">愛妳的狗狗</span>
+      <span class="draw-hint" id="draw-hint">✦ 在螢幕上畫一個愛心 ❤️ ✦</span>
+    </div>
+    <canvas id="heart-canvas"></canvas>
+    <div id="heart-guide">❤</div>
+  </div>
+
+</div><!-- /scroll-container -->
+
+<script>
+// ═══════════════════════════════════════════════
+//  BACKGROUND CANVAS
+// ═══════════════════════════════════════════════
+const bgCanvas = document.getElementById('bg-canvas');
+const bgCtx = bgCanvas.getContext('2d');
+
+const BG_COLORS = [
+  [22,  22,  55],   // s0 midnight
+  [30,  28,  62],   // s1 dark violet-blue
+  [52,  36,  80],   // s2 deep violet
+  [95,  55, 105],   // s3 purple-rose
+  [185, 100, 115],  // s4 dusty rose
+  [255, 232, 218],  // s5 warm peach
+];
+
+function resizeBg() {
+  bgCanvas.width  = window.innerWidth;
+  bgCanvas.height = window.innerHeight;
+}
+resizeBg();
+window.addEventListener('resize', resizeBg);
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+function lerpColor(ca, cb, t) { return ca.map((v,i) => Math.round(lerp(v, cb[i], t))); }
+
+let bgProgress = 0;
+let targetBgProgress = 0;
+let animBgId;
+
+function drawBg(progress) {
+  const n = BG_COLORS.length - 1;
+  const scaled = Math.max(0, Math.min(1, progress)) * n;
+  const idx = Math.min(Math.floor(scaled), n - 1);
+  const t   = scaled - idx;
+  const col = lerpColor(BG_COLORS[idx], BG_COLORS[idx + 1], t);
+
+  const grad = bgCtx.createLinearGradient(0, 0, bgCanvas.width * 0.6, bgCanvas.height);
+  const dark = col.map(v => Math.max(0, v - 18));
+  const light = col.map(v => Math.min(255, v + 10));
+  grad.addColorStop(0, `rgb(${dark})`);
+  grad.addColorStop(1, `rgb(${light})`);
+  bgCtx.fillStyle = grad;
+  bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+  // Subtle vignette
+  const vig = bgCtx.createRadialGradient(
+    bgCanvas.width/2, bgCanvas.height*0.45, bgCanvas.height*0.15,
+    bgCanvas.width/2, bgCanvas.height*0.5,  bgCanvas.height*0.9
+  );
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.38)');
+  bgCtx.fillStyle = vig;
+  bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+}
+
+function animBg() {
+  bgProgress += (targetBgProgress - bgProgress) * 0.04;
+  drawBg(bgProgress);
+  animBgId = requestAnimationFrame(animBg);
+}
+animBg();
+
+// ═══════════════════════════════════════════════
+//  SCROLL & PAGE TRACKING
+// ═══════════════════════════════════════════════
+const scrollEl = document.getElementById('scroll-container');
+let currentPage = 0;
+const TOTAL = 6;
+
+scrollEl.addEventListener('scroll', () => {
+  const scrollH = scrollEl.scrollHeight - scrollEl.clientHeight;
+  if (scrollH <= 0) return;
+  const raw = scrollEl.scrollTop / scrollH;
+  targetBgProgress = raw;
+
+  const pageH = scrollEl.clientHeight;
+  const newPage = Math.round(scrollEl.scrollTop / pageH);
+  if (newPage !== currentPage) {
+    currentPage = newPage;
+    updateDots(currentPage);
+  }
+}, { passive: true });
+
+// ── IntersectionObserver for text animations ──
+const observers = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.intersectionRatio > 0.45) {
+      activateScene(entry.target);
+    }
+  });
+}, { threshold: 0.45 });
+
+document.querySelectorAll('.scene').forEach(s => observers.observe(s));
+
+function activateScene(scene) {
+  // Lines
+  scene.querySelectorAll('.scene-line').forEach(el => {
+    const delay = parseFloat(el.style.getPropertyValue('--d') || 0) * 1000;
+    setTimeout(() => el.classList.add('in'), delay);
+  });
+  // Dog img
+  const img = scene.querySelector('.dog-img');
+  if (img) setTimeout(() => img.classList.add('in'), 300);
+  // Deco
+  scene.querySelectorAll('.deco').forEach((el, i) => {
+    setTimeout(() => el.classList.add('in'), 200 + i * 1400);
+  });
+  // Sig
+  const sig = scene.querySelector('.sig');
+  if (sig) setTimeout(() => sig.classList.add('in'), 500);
+  // Draw hint
+  const hint = scene.querySelector('.draw-hint');
+  if (hint) setTimeout(() => hint.classList.add('in'), 1800);
+}
+
+// ── Dots ──
+document.querySelectorAll('.dot').forEach(dot => {
+  dot.addEventListener('click', () => {
+    const i = parseInt(dot.dataset.i);
+    scrollEl.scrollTo({ top: i * scrollEl.clientHeight, behavior: 'smooth' });
+  });
+});
+
+function updateDots(page) {
+  document.querySelectorAll('.dot').forEach((d, i) => {
+    d.classList.toggle('active', i === page);
+    d.classList.toggle('warm', page === 5);
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  PARTICLES
+// ═══════════════════════════════════════════════
+function makeRain(id, count = 18) {
+  const c = document.getElementById(id);
+  if (!c) return;
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'particle';
+    const dur = 2 + Math.random() * 3;
+    const delay = Math.random() * dur;
+    const left = Math.random() * 100;
+    const h    = 12 + Math.random() * 22;
+    const op   = 0.08 + Math.random() * 0.12;
+    el.style.cssText = `
+      left:${left}%;top:-24px;
+      width:1px;height:${h}px;
+      background:rgba(160,185,230,1);
+      --max-op:${op};--rot:5deg;
+      animation-name:particleFloat;
+      animation-duration:${dur}s;
+      animation-delay:-${delay}s;
+      animation-iteration-count:infinite;
+      border-radius:2px;
+    `;
+    c.appendChild(el);
+  }
+}
+
+function makeFloaters(id, emojis, count = 14) {
+  const c = document.getElementById(id);
+  if (!c) return;
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'particle';
+    const em  = emojis[Math.floor(Math.random() * emojis.length)];
+    const sz  = 10 + Math.random() * 18;
+    const dur = 4 + Math.random() * 5;
+    const delay = Math.random() * 6;
+    const op  = 0.25 + Math.random() * 0.3;
+    const rot = (Math.random() - 0.5) * 60 + 'deg';
+    el.style.cssText = `
+      left:${Math.random()*100}%;top:${Math.random()*100}%;
+      font-size:${sz}px;
+      --max-op:${op};--rot:${rot};
+      animation-name:particlePulse;
+      animation-duration:${dur}s;
+      animation-delay:-${delay}s;
+      animation-iteration-count:infinite;
+    `;
+    el.textContent = em;
+    c.appendChild(el);
+  }
+}
+
+makeRain('p0', 20);
+makeRain('p1', 14);
+makeRain('p2', 8);
+makeFloaters('p3', ['❤', '˙', '✦', '·'], 10);
+makeFloaters('p4', ['❤', '💕', '✦', '˚', '·'], 14);
+makeFloaters('p5', ['✦', '˚', '·', '˙'], 10);
+
+// ═══════════════════════════════════════════════
+//  HEART CANVAS – Scene 5
+// ═══════════════════════════════════════════════
+const hCanvas = document.getElementById('heart-canvas');
+const hCtx    = hCanvas.getContext('2d');
+let isDrawing = false;
+let drawPts   = [];
+let heartDone = false;
+
+function resizeHCanvas() {
+  hCanvas.width  = window.innerWidth;
+  hCanvas.height = window.innerHeight;
+}
+resizeHCanvas();
+window.addEventListener('resize', resizeHCanvas);
+
+function getXY(e) {
+  const r = hCanvas.getBoundingClientRect();
+  const src = e.touches ? e.touches[0] : e;
+  return { x: src.clientX - r.left, y: src.clientY - r.top };
+}
+
+hCanvas.addEventListener('mousedown',  onStart);
+hCanvas.addEventListener('touchstart', onStart, { passive: false });
+hCanvas.addEventListener('mousemove',  onMove);
+hCanvas.addEventListener('touchmove',  onMove,  { passive: false });
+hCanvas.addEventListener('mouseup',    onEnd);
+hCanvas.addEventListener('touchend',   onEnd);
+
+function onStart(e) {
+  if (currentPage !== 5 || heartDone) return;
+  isDrawing = true;
+  drawPts   = [];
+  const p = getXY(e);
+  drawPts.push(p);
+  hCtx.clearRect(0, 0, hCanvas.width, hCanvas.height);
+  hCtx.beginPath();
+  hCtx.moveTo(p.x, p.y);
+}
+
+function onMove(e) {
+  if (!isDrawing) return;
+  if (e.cancelable) e.preventDefault();
+  const p = getXY(e);
+  drawPts.push(p);
+  hCtx.lineTo(p.x, p.y);
+  hCtx.strokeStyle = 'rgba(210,90,90,0.55)';
+  hCtx.lineWidth   = 4.5;
+  hCtx.lineCap     = 'round';
+  hCtx.lineJoin    = 'round';
+  hCtx.stroke();
+  hCtx.beginPath();
+  hCtx.moveTo(p.x, p.y);
+}
+
+function onEnd() {
+  if (!isDrawing) return;
+  isDrawing = false;
+  if (detectHeart(drawPts)) {
+    triggerHeartSuccess();
+  } else {
+    setTimeout(() => hCtx.clearRect(0, 0, hCanvas.width, hCanvas.height), 700);
+  }
+}
+
+function detectHeart(pts) {
+  if (pts.length < 22) return false;
+
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const W = maxX - minX, H = maxY - minY;
+  if (W < 55 || H < 55) return false;
+
+  // Closed shape check
+  const start = pts[0], end = pts[pts.length - 1];
+  const closeDist = Math.hypot(end.x - start.x, end.y - start.y);
+  if (closeDist > Math.max(W, H) * 0.65) return false;
+
+  // Path length check
+  let len = 0;
+  for (let i = 1; i < pts.length; i++)
+    len += Math.hypot(pts[i].x - pts[i-1].x, pts[i].y - pts[i-1].y);
+  if (len < 140) return false;
+
+  // Aspect ratio
+  const ar = W / H;
+  if (ar < 0.4 || ar > 2.8) return false;
+
+  // Bottom point should be near center-horizontal and in lower 40%
+  const botIdx = ys.indexOf(Math.max(...ys));
+  const botXR  = (pts[botIdx].x - minX) / W;
+  const botYR  = (pts[botIdx].y - minY) / H;
+  if (botXR < 0.18 || botXR > 0.82) return false;
+  if (botYR < 0.52) return false;
+
+  return true;
+}
+
+function triggerHeartSuccess() {
+  heartDone = true;
+  hCtx.clearRect(0, 0, hCanvas.width, hCanvas.height);
+
+  // Draw confirming heart
+  const cx = hCanvas.width / 2;
+  const cy = hCanvas.height / 2 + 30;
+  animateHeartDraw(cx, cy, 85);
+
+  // Flash
+  const fl = document.getElementById('flash');
+  fl.style.animation = 'none'; fl.offsetHeight;
+  fl.style.animation = 'flash 0.6s ease forwards';
+
+  // Hide guide
+  document.getElementById('heart-guide').style.opacity = '0';
+  document.getElementById('draw-hint').style.opacity = '0';
+
+  // Balloons
+  setTimeout(launchBalloons, 350);
+
+  // Final image
+  setTimeout(() => {
+    document.getElementById('final-img-wrap').classList.add('show');
+  }, 900);
+}
+
+function animateHeartDraw(cx, cy, r) {
+  let prog = 0;
+  function frame() {
+    prog = Math.min(prog + 0.04, 1);
+    hCtx.clearRect(0, 0, hCanvas.width, hCanvas.height);
+
+    const t = prog;
+    const sr = r * t;
+
+    hCtx.save();
+    hCtx.strokeStyle = `rgba(210,80,80,${0.4 + 0.5 * t})`;
+    hCtx.fillStyle   = `rgba(220,100,90,${0.15 * t})`;
+    hCtx.lineWidth   = 3;
+    hCtx.shadowColor = 'rgba(220,80,80,0.4)';
+    hCtx.shadowBlur  = 16 * t;
+
+    // Heart path
+    hCtx.beginPath();
+    hCtx.moveTo(cx, cy + sr * 0.3);
+    hCtx.bezierCurveTo(cx,      cy,       cx-sr,   cy,       cx-sr,   cy-sr*0.3);
+    hCtx.bezierCurveTo(cx-sr,   cy-sr*0.7, cx,     cy-sr*0.7, cx,     cy-sr*0.3);
+    hCtx.bezierCurveTo(cx,      cy-sr*0.7, cx+sr,  cy-sr*0.7, cx+sr,  cy-sr*0.3);
+    hCtx.bezierCurveTo(cx+sr,   cy,        cx,     cy,        cx,     cy+sr*0.3);
+    hCtx.fill();
+    hCtx.stroke();
+    hCtx.restore();
+
+    if (prog < 1) requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+// ═══════════════════════════════════════════════
+//  BALLOONS
+// ═══════════════════════════════════════════════
+function launchBalloons() {
+  const wrap = document.getElementById('balloon-container');
+  const pool = ['❤️','🧡','💛','💗','💕','💖','🩷','🩵','💙','💜'];
+  for (let i = 0; i < 24; i++) {
+    setTimeout(() => {
+      const b = document.createElement('div');
+      b.className = 'balloon';
+      const sz    = (28 + Math.random() * 34) + 'px';
+      const drift = ((Math.random() - 0.5) * 220) + 'px';
+      const rot   = ((Math.random() - 0.5) * 55) + 'deg';
+      const dur   = (3.2 + Math.random() * 2) + 's';
+      b.style.cssText = `
+        left:${4 + Math.random() * 92}%;
+        --sz:${sz};--drift:${drift};--rot:${rot};--dur:${dur};
+        font-size:${sz};
+      `;
+      b.textContent = pool[Math.floor(Math.random() * pool.length)];
+      wrap.appendChild(b);
+      setTimeout(() => b.remove(), 7000);
+    }, i * 130);
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  KEYBOARD NAV
+// ═══════════════════════════════════════════════
+window.addEventListener('keydown', e => {
+  const ph = scrollEl.clientHeight;
+  if (e.key === 'ArrowDown' || e.key === ' ') {
+    e.preventDefault();
+    scrollEl.scrollBy({ top: ph, behavior: 'smooth' });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    scrollEl.scrollBy({ top: -ph, behavior: 'smooth' });
+  }
+});
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+drawBg(0);
+// Activate first scene immediately
+activateScene(document.querySelector('.scene[data-idx="0"]'));
+</script>
+</body>
+</html>
